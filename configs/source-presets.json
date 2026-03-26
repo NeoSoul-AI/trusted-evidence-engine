@@ -1,0 +1,67 @@
+{
+  "presets": {
+    "sports_basic": {
+      "name": "sports_basic",
+      "description": "A starter sports preset built around widely used public sports feeds.",
+      "feed_urls": [
+        "https://www.espn.com/espn/rss/news",
+        "https://www.espn.com/espn/rss/nba/news",
+        "https://www.espn.com/espn/rss/nfl/news"
+      ],
+      "provider_hints": [
+        "feed_aggregator",
+        "brave_search"
+      ],
+      "notes": [
+        "Useful for broad sports monitoring and league headline tracking.",
+        "Pair with official league/team sources when settlement accuracy matters."
+      ]
+    },
+    "crypto_basic": {
+      "name": "crypto_basic",
+      "description": "A starter crypto preset with one verified crypto newsroom feed and crypto-native providers.",
+      "feed_urls": [
+        "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      ],
+      "provider_hints": [
+        "coingecko_search",
+        "coingecko_simple_price",
+        "feed_aggregator",
+        "brave_search"
+      ],
+      "notes": [
+        "Pair with protocol, issuer, or exchange sources for higher-confidence workflows.",
+        "You can add more crypto feeds through TEE_FEED_URLS without changing the preset file."
+      ]
+    },
+    "macro_basic": {
+      "name": "macro_basic",
+      "description": "A macro/central-bank preset built around official Federal Reserve feeds.",
+      "feed_urls": [
+        "https://www.federalreserve.gov/feeds/press_all.xml",
+        "https://www.federalreserve.gov/feeds/press_monetary.xml"
+      ],
+      "provider_hints": [
+        "feed_aggregator",
+        "brave_search"
+      ],
+      "notes": [
+        "Good for rate decisions, policy statements, and official Fed releases.",
+        "Add Treasury, BLS, or other official feeds through TEE_FEED_URLS as needed."
+      ]
+    },
+    "equity_basic": {
+      "name": "equity_basic",
+      "description": "A stock/equity preset focused on quote APIs and broad business-news discovery.",
+      "feed_urls": [],
+      "provider_hints": [
+        "alphavantage_quote",
+        "brave_search"
+      ],
+      "notes": [
+        "This preset relies more on Alpha Vantage and search than on bundled feeds.",
+        "Add company IR feeds or business-news feeds through TEE_FEED_URLS for richer coverage."
+      ]
+    }
+  }
+}

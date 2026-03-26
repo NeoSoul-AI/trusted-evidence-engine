@@ -1,0 +1,13 @@
+{
+  "query": "Will Team A win the final?",
+  "claim": "Team A wins the final match",
+  "topic_id": "demo-topic-1",
+  "prediction_id": "demo-prediction-1",
+  "source_urls": [
+    "https://example.com/final"
+  ],
+  "context_metadata": {
+    "league": "demo-league",
+    "market_type": "binary"
+  }
+}
