@@ -6,6 +6,32 @@ It fetches from external sources, normalizes documents, deduplicates overlapping
 
 This repository is the initial skeleton for the public project. The current implementation is intentionally small: it defines the core package layout, schema, CLI, HTTP API, and adapter boundaries so the project can evolve in a clean direction.
 
+## Why This Matters To EvoEvo And Beyond
+
+This project did not start as a generic idea with no real consumer.
+
+It comes from a real need inside EvoEvo:
+
+- hosted agents need grounded evidence before opinion generation
+- committee workflows need reviewable public-source input before any candidate resolution logic
+- external skill or runtime integrations need a stable evidence artifact instead of hidden private orchestration
+
+That internal origin is a strength, not a weakness.
+
+It means the project is already shaped by real constraints:
+
+- prediction-native inputs
+- reviewability before action
+- explicit boundaries between evidence, planning, and execution
+- programmatic consumption over CLI and HTTP
+
+At the same time, the project is intentionally being extracted above EvoEvo-specific business logic so it can be reused by:
+
+- agent teams
+- research workflows
+- prediction-market tooling
+- high-stakes automation systems
+
 ## Why This Exists
 
 Most systems today either:
@@ -79,6 +105,20 @@ Trusted Evidence Engine does not:
 
 It is designed to be the shared evidence layer that other systems plug into.
 
+## Current Maturity
+
+This repository is best understood as a working `v0`:
+
+- the core engine, schema, ranking, CLI, HTTP API, and several real providers already exist
+- a concrete committee-runtime consumption pattern already exists
+- the generic agent and OpenClaw adapters are still early and intentionally thin
+
+So the right expectation today is:
+
+- real enough to evaluate
+- real enough to integrate experimentally
+- not yet complete enough to claim full committee-grade evidence attestation by itself
+
 ## How This Differs From Brave Search
 
 Brave Search can be a useful provider for this project, but it is not the same thing.
@@ -119,8 +159,10 @@ Its trust model is based on:
 
 Read more:
 
+- [docs/PRODUCT_DESIGN.md](./docs/PRODUCT_DESIGN.md)
 - [docs/SOURCE_TAXONOMY.md](./docs/SOURCE_TAXONOMY.md)
 - [docs/TRUST_POLICY.md](./docs/TRUST_POLICY.md)
+- [docs/ATTESTED_EVIDENCE_PROFILE.md](./docs/ATTESTED_EVIDENCE_PROFILE.md)
 
 ## Why Go
 
@@ -373,15 +415,66 @@ This skeleton currently includes:
 - basic trust/freshness ranking
 - a `tee resolve` CLI
 - a `tee-server` HTTP service
-- adapter placeholders for committee runtime and OpenClaw
+- a documented committee-runtime integration pattern
+- early adapter placeholders for generic agents and OpenClaw
 
 It does not yet include:
 
-- real external provider integrations
 - persistent caching
 - rate limiting policies
 - content extraction pipelines
 - Python or TypeScript SDK implementations
+- a first-class attested-evidence-bundle profile for committee-grade audit trails
+
+## Alignment With EvoEvo
+
+This project is intentionally aligned with the way EvoEvo already works.
+
+Today, EvoEvo needs an evidence layer that can:
+
+- accept `prediction_id`, `topic_id`, and raw public URLs
+- package public evidence before a hosted agent reasons over it
+- feed a committee runtime without moving signing or settlement logic into the engine
+- keep provider origin, source type, and ranking signals visible for review
+
+That is why the current schema and API already expose:
+
+- `prediction_id`
+- `topic_id`
+- `source_urls`
+- `policy`
+- `policy_version`
+- `ranking_signals`
+
+This is also why the first concrete runtime-facing adapter is the committee path, not a generic chatbot UI.
+
+What is still missing for stricter committee workflows is a richer attested bundle profile with fields such as:
+
+- content hashes
+- snapshot URIs
+- reasoning hashes
+- bundle hashes
+
+Those fields are important for high-assurance audit trails, but they belong on top of the current evidence-pack foundation rather than replacing it.
+
+## Why This Has Public Open-Source Value
+
+The project should not be judged only by whether it helps EvoEvo.
+
+It has value for outside users because it already captures a more general pattern:
+
+- retrieval is not enough
+- model output is not enough
+- many workflows need a reviewable evidence artifact between those two layers
+
+That applies well beyond EvoEvo to:
+
+- agent grounding
+- deep research pipelines
+- prediction-market review tooling
+- workflow engines that need inspectable public evidence before acting
+
+The public value is strongest when the project stays focused on this shared layer instead of drifting back into platform-specific product logic.
 
 ## Committee Runtime Integration
 
@@ -401,6 +494,9 @@ The committee runtime decides whether the evidence is actionable and whether any
 
 See [examples/committee-runtime-adapter/README.md](./examples/committee-runtime-adapter/README.md).
 
+This is currently the most concrete downstream integration path in the repository.
+It reflects a real EvoEvo consumer, but the boundary is intentionally generic enough for other oracle and review workflows.
+
 ## OpenClaw Integration
 
 OpenClaw should consume this project through an adapter or skill, not by embedding platform-specific business logic into the engine.
@@ -413,6 +509,9 @@ Recommended pattern:
 4. OpenClaw strategy/runtime uses that pack as grounded input
 
 See [examples/openclaw-skill/README.md](./examples/openclaw-skill/README.md).
+
+This path is intentionally earlier than the committee integration.
+The OpenClaw adapter is part of the public project shape, but it is not yet the most mature integration in the repository.
 
 ## Release Channels
 

@@ -12,6 +12,27 @@ Recommended flow:
 
 This adapter should stay outside the core engine so the engine remains generic and reusable.
 
+## Base Pack Versus Attested Bundle
+
+The current recommended integration uses the base public `evidence pack`.
+
+That base pack is useful for:
+
+- public-source discovery
+- reviewable market metadata
+- planner previews
+- manually reviewed candidate resolution logic
+
+For stricter committee workflows, teams may later wrap the base pack inside a stronger attested bundle that also carries:
+
+- `content_hash`
+- `snapshot_uri`
+- `reasoning_hash`
+- `evidence_bundle_hash`
+
+That stronger bundle is a downstream workflow concern.
+It should not force the generic engine itself to become committee-specific.
+
 ## Recommended Runtime Mode
 
 For the current committee runtime integration, the recommended planner is:
@@ -25,6 +46,23 @@ That planner should:
 3. POST them to `/v1/evidence/resolve`
 4. Inspect the returned `evidence pack`
 5. Turn only actionable items into a preview or candidate submission
+
+Minimal example request:
+
+```json
+{
+  "prediction_id": 101,
+  "topic_id": 55,
+  "source_urls": [
+    "https://polymarket.com/event/example-market",
+    "https://www.reuters.com/example-story"
+  ],
+  "context_metadata": {
+    "workflow": "committee_review",
+    "market_type": "binary_yes_no"
+  }
+}
+```
 
 The runtime should not:
 
@@ -48,3 +86,11 @@ The first actionable integration path is:
 - especially binary `Yes/No` markets with a clear resolved state
 
 Other evidence types such as news, feeds, and quotes remain valuable for discovery and review, but they should not automatically become settlement payloads until the runtime has explicit mapping logic for them.
+
+## Practical Integration Rule
+
+The safest current rule is:
+
+- use the engine to package evidence
+- let the planner decide whether anything is actionable
+- keep signer, quorum, approval, and submit logic in the committee runtime

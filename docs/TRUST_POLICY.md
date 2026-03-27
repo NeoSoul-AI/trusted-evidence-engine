@@ -93,3 +93,9 @@ Later versions should support:
 - source allowlists and blocklists
 - cross-source corroboration rules
 - stricter modes for high-stakes workflows
+
+For committee and audit-oriented workflows, policy should also stay compatible with a stricter attested profile layered above the base evidence pack.
+
+See:
+
+- `docs/ATTESTED_EVIDENCE_PROFILE.md`
