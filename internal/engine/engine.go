@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/evoevo/trusted-evidence-engine/internal/dedup"
+	"github.com/evoevo/trusted-evidence-engine/internal/metrics"
 	"github.com/evoevo/trusted-evidence-engine/internal/providers"
 	"github.com/evoevo/trusted-evidence-engine/internal/ranking"
 	"github.com/evoevo/trusted-evidence-engine/internal/schema"
@@ -57,7 +58,9 @@ func (e *Engine) Resolve(ctx context.Context, input schema.ResolveInput) (schema
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			startedAt := time.Now()
 			items, err := provider.Fetch(ctx, input)
+			metrics.ObserveProvider(provider.Name(), startedAt, err, len(items))
 			if err != nil || len(items) == 0 {
 				return
 			}
@@ -71,7 +74,7 @@ func (e *Engine) Resolve(ctx context.Context, input schema.ResolveInput) (schema
 	documents = dedup.Merge(documents)
 	items := ranking.ScoreDocuments(e.now(), documents)
 	return schema.EvidencePack{
-		SchemaVersion:    DefaultSchemaVersion,
+		SchemaVersion:   DefaultSchemaVersion,
 		Query:           strings.TrimSpace(input.Query),
 		Claim:           strings.TrimSpace(input.Claim),
 		PredictionID:    input.PredictionID,

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/evoevo/trusted-evidence-engine/internal/providers"
@@ -36,5 +37,24 @@ func TestResolveAllowsSourceURLsOnly(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
+	}
+}
+
+type failingProvider struct{}
+
+func (failingProvider) Name() string { return "failing" }
+
+func (failingProvider) Fetch(context.Context, schema.ResolveInput) ([]schema.SourceDocument, error) {
+	return nil, errors.New("upstream timeout")
+}
+
+func TestResolveToleratesProviderFailures(t *testing.T) {
+	e := New([]providers.Provider{failingProvider{}, providers.DemoProvider{}})
+	pack, err := e.Resolve(context.Background(), schema.ResolveInput{Query: "demo event"})
+	if err != nil {
+		t.Fatalf("Resolve() error = %v", err)
+	}
+	if len(pack.Items) == 0 {
+		t.Fatalf("Resolve() returned no items")
 	}
 }
