@@ -31,6 +31,8 @@ type AlphaVantageProvider struct {
 }
 
 type alphaVantageSymbolSearchResponse struct {
+	Note        string              `json:"Note"`
+	Information string              `json:"Information"`
 	BestMatches []map[string]string `json:"bestMatches"`
 }
 
@@ -195,6 +197,9 @@ func (provider *AlphaVantageProvider) resolveSymbol(ctx context.Context, input s
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return "", nil, fmt.Errorf("decode alphavantage symbol search: %w", err)
 	}
+	if msg := alphaVantageAPIMessage(payload.Note, payload.Information); msg != "" {
+		return "", nil, alphaVantageMessageError(msg)
+	}
 	if len(payload.BestMatches) == 0 {
 		return "", nil, nil
 	}
@@ -242,11 +247,27 @@ func (provider *AlphaVantageProvider) globalQuote(ctx context.Context, symbol st
 		return nil, fmt.Errorf("alphavantage quote returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
-	var payload map[string]map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	var raw map[string]json.RawMessage
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, fmt.Errorf("decode alphavantage quote: %w", err)
 	}
-	return payload["Global Quote"], nil
+	var note, info string
+	if v, ok := raw["Note"]; ok {
+		_ = json.Unmarshal(v, &note)
+	}
+	if v, ok := raw["Information"]; ok {
+		_ = json.Unmarshal(v, &info)
+	}
+	if msg := alphaVantageAPIMessage(note, info); msg != "" {
+		return nil, alphaVantageMessageError(msg)
+	}
+	var quotes map[string]string
+	if v, ok := raw["Global Quote"]; ok {
+		if err := json.Unmarshal(v, &quotes); err != nil {
+			return nil, fmt.Errorf("decode alphavantage quote fields: %w", err)
+		}
+	}
+	return quotes, nil
 }
 
 func buildAlphaVantageSnippet(symbol string, values map[string]string) string {
@@ -276,4 +297,26 @@ func stringToFloat(value string) any {
 		return parsed
 	}
 	return value
+}
+
+// alphaVantageAPIMessage returns the first non-empty "Note" or "Information"
+// message the API embeds in a 200 response when the caller is rate-limited or
+// has exhausted its daily quota. Returns "" when neither field is present.
+func alphaVantageAPIMessage(note, information string) string {
+	if v := strings.TrimSpace(note); v != "" {
+		return v
+	}
+	return strings.TrimSpace(information)
+}
+
+// alphaVantageMessageError converts a rate-limit / quota message from
+// Alpha Vantage into an error whose text classifies correctly in classifyError:
+//   - contains "rate limit" → kind="rate_limit"
+//   - contains "quota"      → kind="quota_exceeded"
+func alphaVantageMessageError(msg string) error {
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, "minute") || strings.Contains(lower, "per minute") || strings.Contains(lower, "frequency") {
+		return fmt.Errorf("alphavantage rate limit: %s", msg)
+	}
+	return fmt.Errorf("alphavantage quota exceeded: %s", msg)
 }
