@@ -1,3 +1,6 @@
 /bin/
 /dist/
 /.DS_Store
+
+# AI-generated service brief (per user request)
+CLAUDE.md
