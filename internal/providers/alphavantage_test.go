@@ -120,3 +120,74 @@ func TestAlphaVantageProviderFetchWithSearch(t *testing.T) {
 		t.Fatalf("expected 2 API calls, got %d", len(calls))
 	}
 }
+
+func TestAlphaVantageProviderFetch_RateLimitNote_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"Note": "Thank you for using Alpha Vantage! Our standard API call frequency is 5 calls per minute and 100 calls per day."}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewAlphaVantageProvider(
+		"demo",
+		WithAlphaVantageBaseURL(server.URL),
+		WithAlphaVantageHTTPClient(server.Client()),
+	)
+	if err != nil {
+		t.Fatalf("NewAlphaVantageProvider: %v", err)
+	}
+
+	_, err = provider.Fetch(context.Background(), schema.ResolveInput{
+		Query: "IBM price",
+		ContextMetadata: map[string]any{"ticker": "IBM"},
+	})
+	if err == nil {
+		t.Fatal("expected error when Note field present, got nil")
+	}
+	if !containsStr(err.Error(), "rate limit") {
+		t.Errorf("error %q should contain 'rate limit'", err.Error())
+	}
+}
+
+func TestAlphaVantageProviderFetch_InformationQuota_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"Information": "Thank you for using Alpha Vantage! This is a daily limit message."}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewAlphaVantageProvider(
+		"demo",
+		WithAlphaVantageBaseURL(server.URL),
+		WithAlphaVantageHTTPClient(server.Client()),
+	)
+	if err != nil {
+		t.Fatalf("NewAlphaVantageProvider: %v", err)
+	}
+
+	_, err = provider.Fetch(context.Background(), schema.ResolveInput{
+		Query: "IBM price",
+		ContextMetadata: map[string]any{"ticker": "IBM"},
+	})
+	if err == nil {
+		t.Fatal("expected error when Information field present, got nil")
+	}
+	if !containsStr(err.Error(), "quota") && !containsStr(err.Error(), "rate limit") {
+		t.Errorf("error %q should contain 'quota' or 'rate limit'", err.Error())
+	}
+}
+
+func containsStr(s, sub string) bool {
+	return len(s) >= len(sub) && func() bool {
+		for i := 0; i+len(sub) <= len(s); i++ {
+			if s[i:i+len(sub)] == sub {
+				return true
+			}
+		}
+		return false
+	}()
+}
