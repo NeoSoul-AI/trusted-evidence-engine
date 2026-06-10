@@ -70,16 +70,9 @@ jobs:
             SERVICE_GIT_BRANCH=${{ steps.buildargs.outputs.branch }}
             BUILD_TIME=${{ steps.buildargs.outputs.build_time }}
 
-  deploy:
-    needs: build-push
-    if: github.ref_name == 'dev' || github.ref_name == 'test'
-    runs-on: [self-hosted, neotest]
-    steps:
-      - name: Rollout latest image to neotest
-        run: |
-          set -euo pipefail
-          ENV="${{ github.ref_name }}"          # dev or test
-          SVC="trusted-evidence-engine"
-          IMG="ghcr.io/neosoul-ai/trusted-evidence-engine:sha-${GITHUB_SHA::7}"     # exact version, forces re-pull
-          kubectl -n "lifefun-$ENV" set image "deploy/$SVC" "$SVC=$IMG"
-          kubectl -n "lifefun-$ENV" rollout status "deploy/$SVC" --timeout=180s
+  # No deploy job here: this repo is PUBLIC and the org self-hosted runner
+  # group rejects public-repo jobs (fork-PR code execution risk). Rollout to
+  # neotest happens via the lifefun-monorepo deploy-neotest workflow (the
+  # release pulls :test with imagePullPolicy Always on every monorepo deploy);
+  # for an immediate rollout run:
+  #   kubectl -n lifefun-test rollout restart deploy/trusted-evidence-engine
