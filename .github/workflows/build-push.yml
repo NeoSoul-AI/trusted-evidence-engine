@@ -1,0 +1,78 @@
+name: Build & Push Image
+
+# 镜像仓库：当前用 GitHub Packages (ghcr.io) 以节省成本。
+# 测试环境镜像由 test 分支驱动（merge 到 test → 构建 :test 镜像 → 部署测试环境）。
+# main / 语义化 tag 预留给后续生产。
+#
+# 后续迁回腾讯云 TCR：见下方 [TCR] 注释，把登录与镜像名换成 secrets.TCR_* 即可。
+on:
+  push:
+    branches: [test, main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+# ghcr 推送用内置 GITHUB_TOKEN，需声明 packages: write
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # 登录 ghcr.io —— 用内置 GITHUB_TOKEN，无需手工配密钥
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # [TCR] 迁回腾讯云 TCR 时改为：
+      #     registry: ${{ secrets.TCR_REGISTRY }}
+      #     username: ${{ secrets.TCR_USERNAME }}
+      #     password: ${{ secrets.TCR_PASSWORD }}
+
+      # 按分支/tag 自动生成镜像标签：
+      #   push test → :test + :sha-xxxx；push main → :main + :sha-xxxx；tag vX.Y.Z → :X.Y.Z
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          # ghcr 镜像名需小写，metadata-action 会自动小写
+          images: ghcr.io/${{ github.repository }}
+          # [TCR] 迁回时改为：images: ${{ secrets.TCR_REGISTRY }}/lifefun/<service>
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,format=short
+
+      - name: Build args metadata
+        id: buildargs
+        run: |
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SERVICE_GIT_SHA=${{ steps.buildargs.outputs.sha }}
+            SERVICE_GIT_BRANCH=${{ steps.buildargs.outputs.branch }}
+            BUILD_TIME=${{ steps.buildargs.outputs.build_time }}
+
+  # No deploy job here: this repo is PUBLIC and the org self-hosted runner
+  # group rejects public-repo jobs (fork-PR code execution risk). Rollout to
+  # neotest happens via the lifefun-monorepo deploy-neotest workflow (the
+  # release pulls :test with imagePullPolicy Always on every monorepo deploy);
+  # for an immediate rollout run:
+  #   kubectl -n lifefun-test rollout restart deploy/trusted-evidence-engine
